@@ -1,23 +1,23 @@
-# Firebase App Hosting configuration
-# Place this file at the repo root.
-
+# Settings for Backend (on Cloud Run).
+# See https://firebase.google.com/docs/app-hosting/configure#cloud-run
 runConfig:
-  runtime: nodejs20
+  minInstances: 0
+  # maxInstances: 100
+  # concurrency: 80
+  # cpu: 1
+  # memoryMiB: 512
 
-env:
-  - variable: VITE_FIREBASE_API_KEY
-    value: "AIzaSyBqR2-t7zfW7GnxYZIMQa6uXzMzwfq3r0I"
-  - variable: VITE_FIREBASE_AUTH_DOMAIN
-    value: "story-platform-f1dc7.firebaseapp.com"
-  - variable: VITE_FIREBASE_PROJECT_ID
-    value: "story-platform-f1dc7"
-  - variable: VITE_FIREBASE_STORAGE_BUCKET
-    value: "story-platform-f1dc7.firebasestorage.app"
-  - variable: VITE_FIREBASE_MESSAGING_SENDER_ID
-    value: "509542766760"
-  - variable: VITE_FIREBASE_APP_ID
-    value: "1:509542766760:web:d76ad06a516cff55b80a9d"
-  - variable: VITE_FIREBASE_MEASUREMENT_ID
-    value: "G-1ZZV96D3TB"
-  - variable: VITE_GEMINI_API_KEY
-    value: "AIzaSyAM3tCbZH42IYIWyQXYl1mHz_x5rwizGXs"
+# Environment variables and secrets.
+# env:
+  # Configure environment variables.
+  # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
+  # - variable: MESSAGE
+  #   value: Hello world!
+  #   availability:
+  #     - BUILD
+  #     - RUNTIME
+
+  # Grant access to secrets in Cloud Secret Manager.
+  # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
+  # - variable: MY_SECRET
+  #   secret: mySecretRef
