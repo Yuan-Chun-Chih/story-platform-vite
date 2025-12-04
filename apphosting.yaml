@@ -1,7 +1,36 @@
 # Settings for Backend (on Cloud Run).
 # See https://firebase.google.com/docs/app-hosting/configure#cloud-run
+# Settings for Backend (on Cloud Run).
 runConfig:
   minInstances: 0
+  runtime: nodejs20  # 建議加上這行，確保使用 Node.js 20
+
+# Environment variables and secrets.
+env:
+  # 您的 Firebase 設定 (請確保格式是 - variable: ... value: ...)
+  - variable: VITE_FIREBASE_API_KEY
+    value: "AIzaSyBqR2-t7zfW7GnxYZIMQa6uXzMzwfq3r0I"
+  
+  - variable: VITE_FIREBASE_AUTH_DOMAIN
+    value: "story-platform-f1dc7.firebaseapp.com"
+  
+  - variable: VITE_FIREBASE_PROJECT_ID
+    value: "story-platform-f1dc7"
+  
+  - variable: VITE_FIREBASE_STORAGE_BUCKET
+    value: "story-platform-f1dc7.firebasestorage.app"
+  
+  - variable: VITE_FIREBASE_MESSAGING_SENDER_ID
+    value: "509542766760"
+  
+  - variable: VITE_FIREBASE_APP_ID
+    value: "1:509542766760:web:d76ad06a516cff55b80a9d"
+  
+  - variable: VITE_FIREBASE_MEASUREMENT_ID
+    value: "G-1ZZV96D3TB"
+  
+  - variable: VITE_GEMINI_API_KEY
+    value: "AIzaSyAM3tCbZH42IYIWyQXYl1mHz_x5rwizGXs"
   # maxInstances: 100
   # concurrency: 80
   # cpu: 1
