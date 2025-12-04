@@ -1,13 +1,8 @@
-@tailwind utilities;
+@import "tailwindcss";
 
-/* --- 自定義極光動畫 (從 App.tsx 移過來) --- */
 @layer utilities {
-  .animation-delay-2000 {
-    animation-delay: 2s;
-  }
-  .animation-delay-4000 {
-    animation-delay: 4s;
-  }
+  .animation-delay-2000 { animation-delay: 2s; }
+  .animation-delay-4000 { animation-delay: 4s; }
 }
 
 @keyframes blob {
