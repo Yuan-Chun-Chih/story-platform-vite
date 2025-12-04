@@ -1,0 +1,52 @@
+@import "tailwindcss"; /* 這是 v4 唯一需要的一行 */
+
+:root {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", system-ui, -apple-system, sans-serif; /* 強制設定字體，避免變回襯線體 */
+  
+  /* 極光背景設定 */
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(79, 70, 229, 0.15), transparent 35%),
+    radial-gradient(circle at 80% 0%, rgba(56, 189, 248, 0.15), transparent 30%),
+    radial-gradient(circle at 50% 80%, rgba(236, 72, 153, 0.12), transparent 30%);
+  background-attachment: fixed;
+}
+
+/* 自定義動畫與工具類 */
+@theme {
+  --animate-blob: blob 10s infinite;
+}
+
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+/* 確保 Tailwind 可以掃描到這些自定義 class */
+.animate-blob {
+  animation: blob 10s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+.glass-panel {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+}
