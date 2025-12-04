@@ -1,5 +1,5 @@
 # Firebase App Hosting configuration
-# Replace placeholder values or wire to Secret Manager before deploying.
+# Place this file at the repo root.
 
 runConfig:
   runtime: nodejs20
