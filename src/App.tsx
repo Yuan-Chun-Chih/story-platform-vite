@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { 
   signInAnonymously, 
   onAuthStateChanged, 
@@ -28,8 +28,8 @@ import type { AIReview, Contribution, Story } from './types';
 import AuroraBackground from './components/AuroraBackground';
 import CreateStoryModal from './components/CreateStoryModal';
 import HeaderBar from './components/HeaderBar';
-import HomeView from './components/HomeView';
-import StoryView from './components/StoryView';
+const HomeView = React.lazy(() => import('./components/HomeView'));
+const StoryView = React.lazy(() => import('./components/StoryView'));
 
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -65,6 +65,7 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [copied, setCopied] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   useEffect(() => {
@@ -109,6 +110,22 @@ export default function App() {
       setStories(fetchedStories);
     }, (err) => console.error("Story fetch error:", err));
   }, [user]);
+
+  // Auto-open story from query param for easier分享/協作
+  useEffect(() => {
+    if (!stories.length || view === 'story') return;
+    const params = new URLSearchParams(window.location.search);
+    const storyId = params.get('storyId');
+    if (storyId) {
+      const target = stories.find(s => s.id === storyId);
+      if (target) {
+        setCurrentStory(target);
+        setView('story');
+        setCurrentPath([]);
+        setCurrentNodeId(null);
+      }
+    }
+  }, [stories, view]);
 
   useEffect(() => {
     if (!user || !currentStory || !db) return;
@@ -215,6 +232,15 @@ export default function App() {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyInviteLink = () => {
+    if (!currentStory) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('storyId', currentStory.id);
+    navigator.clipboard.writeText(url.toString());
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
   };
 
   const handleExportStory = () => {
@@ -361,7 +387,27 @@ export default function App() {
       });
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      setInspiration(text.split('\n').filter((l: string) => l.trim()).slice(0, 3));
+      const normalized = text.replace(/\r\n/g, '\n');
+      const partsByHeading = normalized
+        .split(/^##\s*靈感[一二三]/m)
+        .slice(1)
+        .map((p: string) => p.trim())
+        .filter(Boolean);
+      let ideas: string[] = [];
+
+      if (partsByHeading.length) {
+        ideas = partsByHeading
+          .map((p: string) => p.split(/\n{2,}|\n[-•#]/)[0].trim())
+          .filter(Boolean)
+          .slice(0, 3);
+      } else {
+        ideas = normalized
+          .split('\n')
+          .map((l: string) => l.replace(/^#+/, '').replace(/^[•\-\s]+/, '').trim())
+          .filter((l: string) => l && l !== '---' && !/延伸出的\s*3\s*個靈感方向/i.test(l))
+          .slice(0, 3);
+      }
+      setInspiration(ideas);
     } catch (error) {
       console.error(error);
     } finally {
@@ -453,42 +499,49 @@ export default function App() {
 
       <div className="relative z-10 container mx-auto px-4 py-6 max-w-4xl">
         {view === 'home' ? (
-          <HomeView 
-            stories={stories} 
-            user={user}
-            isAuthLoading={isAuthLoading}
-            onGoogleLogin={handleGoogleLogin}
-            onSelectStory={(story) => { setCurrentStory(story); setView('story'); setCurrentPath([]); setCurrentNodeId(null); }} 
-          />
+          <Suspense fallback={<div className="text-slate-400">載入中...</div>}>
+            <HomeView 
+              stories={stories} 
+              user={user}
+              isAuthLoading={isAuthLoading}
+              onGoogleLogin={handleGoogleLogin}
+              onSelectStory={(story) => { setCurrentStory(story); setView('story'); setCurrentPath([]); setCurrentNodeId(null); }} 
+            />
+          </Suspense>
         ) : (
-          <StoryView
-            currentStory={currentStory}
-            currentPath={currentPath}
-            currentBranches={currentBranches}
-            aiRanking={aiRanking}
-            isRanking={isRanking}
-            isWriting={isWriting}
-            newContent={newContent}
-            newTags={newTags}
-            inspiration={inspiration}
-            isGenerating={isGenerating}
-            playingNodeId={playingNodeId}
-            isSpeakingLoading={isSpeakingLoading}
-            copied={copied}
-            onBack={() => { setView('home'); setCurrentStory(null); setCurrentPath([]); setCurrentNodeId(null); stopAudio(); }}
-            onShare={handleShare}
-            onExport={handleExportStory}
-            onNavigateUp={navigateUp}
-            onNavigateToNode={navigateToNode}
-            onToggleWriting={setIsWriting}
-            onChangeContent={setNewContent}
-            onChangeTags={setNewTags}
-            onGenerateInspiration={generateInspiration}
-            onSubmitContribution={handleSubmitContribution}
-            onGenerateRanking={generateRanking}
-            onLike={handleLike}
-            onSpeak={handleSpeak}
-          />
+          <Suspense fallback={<div className="text-slate-400">載入中...</div>}>
+            <StoryView
+              currentStory={currentStory}
+              currentPath={currentPath}
+              currentBranches={currentBranches}
+              aiRanking={aiRanking}
+              isRanking={isRanking}
+              isWriting={isWriting}
+              newContent={newContent}
+              newTags={newTags}
+              inspiration={inspiration}
+              isGenerating={isGenerating}
+              playingNodeId={playingNodeId}
+              isSpeakingLoading={isSpeakingLoading}
+              copied={copied}
+              inviteCopied={inviteCopied}
+              user={user}
+              onBack={() => { setView('home'); setCurrentStory(null); setCurrentPath([]); setCurrentNodeId(null); stopAudio(); }}
+              onShare={handleShare}
+              onCopyInvite={handleCopyInviteLink}
+              onExport={handleExportStory}
+              onNavigateUp={navigateUp}
+              onNavigateToNode={navigateToNode}
+              onToggleWriting={setIsWriting}
+              onChangeContent={setNewContent}
+              onChangeTags={setNewTags}
+              onGenerateInspiration={generateInspiration}
+              onSubmitContribution={handleSubmitContribution}
+              onGenerateRanking={generateRanking}
+              onLike={handleLike}
+              onSpeak={handleSpeak}
+            />
+          </Suspense>
         )}
       </div>
     </div>

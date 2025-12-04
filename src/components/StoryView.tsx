@@ -1,7 +1,8 @@
 import React from 'react';
-import { ArrowLeft, Bot, Check, ChevronRight, Crown, Download, Feather, GitBranch, Heart, Loader2, Share2, Sparkles, StopCircle, Volume2, Dices } from 'lucide-react';
+import { ArrowLeft, Bot, Check, ChevronRight, Crown, Download, Feather, GitBranch, Heart, Link2, Loader2, Share2, Sparkles, StopCircle, Volume2, Dices } from 'lucide-react';
 import GlassCard from './GlassCard';
 import type { AIReview, Contribution, Story } from '../types';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 interface StoryViewProps {
   currentStory: Story | null;
@@ -17,8 +18,11 @@ interface StoryViewProps {
   playingNodeId: string | null;
   isSpeakingLoading: boolean;
   copied: boolean;
+  inviteCopied: boolean;
+  user: FirebaseUser | null;
   onBack: () => void;
   onShare: () => void;
+  onCopyInvite: () => void;
   onExport: () => void;
   onNavigateUp: (index: number) => void;
   onNavigateToNode: (node: Contribution) => void;
@@ -46,8 +50,11 @@ const StoryView = ({
   playingNodeId,
   isSpeakingLoading,
   copied,
+  inviteCopied,
+  user,
   onBack,
   onShare,
+  onCopyInvite,
   onExport,
   onNavigateUp,
   onNavigateToNode,
@@ -61,9 +68,17 @@ const StoryView = ({
   onSpeak,
 }: StoryViewProps) => (
   <div>
+    {user?.isAnonymous && (
+      <GlassCard className="p-3 mb-3 text-xs text-amber-200 bg-amber-500/10 border-amber-400/30">
+        目前為匿名狀態，登入 Google 可同步暱稱與頭像，避免貢獻遺失並提升存取安全。
+      </GlassCard>
+    )}
     <div className="flex items-center justify-between mb-6">
       <button onClick={onBack} className="flex items-center gap-1 text-sm text-slate-400 hover:text-white"><ArrowLeft size={16}/> 返回</button>
       <div className="flex gap-2">
+        <button onClick={onCopyInvite} className="p-2 bg-white/5 rounded-full hover:bg-white/10">
+          {inviteCopied ? <Check size={16} className="text-green-400"/> : <Link2 size={16}/>}
+        </button>
         <button onClick={onShare} className="p-2 bg-white/5 rounded-full hover:bg-white/10">{copied ? <Check size={16} className="text-green-400"/> : <Share2 size={16}/>}</button>
         <button onClick={onExport} className="p-2 bg-white/5 rounded-full hover:bg-white/10"><Download size={16}/></button>
       </div>
@@ -136,8 +151,12 @@ const StoryView = ({
               </button>
             </div>
             {inspiration.length > 0 && (
-              <div className="text-xs bg-purple-900/30 p-2 rounded mb-2 text-purple-200">
-                {inspiration.map((idea, idx) => <div key={idx}>• {idea}</div>)}
+              <div className="text-xs bg-purple-900/30 p-3 rounded mb-3 text-purple-200 whitespace-pre-wrap leading-relaxed break-words">
+                {inspiration.map((idea, idx) => (
+                  <div key={idx} className="mb-2 last:mb-0">
+                    {idea}
+                  </div>
+                ))}
               </div>
             )}
             <textarea

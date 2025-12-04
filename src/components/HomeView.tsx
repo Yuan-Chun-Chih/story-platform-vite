@@ -17,7 +17,7 @@ const HomeView = ({ stories, user, isAuthLoading = false, onGoogleLogin, onSelec
       <GlassCard className="p-4 flex items-center justify-between bg-white/5 border-white/10">
         <div>
           <h2 className="text-lg font-bold">使用 Google 登入以保存創作</h2>
-          <p className="text-sm text-slate-300">同步你的暱稱與頭像，作品可跨裝置保留。</p>
+          <p className="text-sm text-slate-300">同步暱稱/頭像，貢獻更易追蹤，也更安全。</p>
         </div>
         <button 
           onClick={onGoogleLogin} 
