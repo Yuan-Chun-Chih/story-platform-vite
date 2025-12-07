@@ -22,12 +22,14 @@ import {
 
 import { auth, db } from './lib/firebase';
 import { CANON_THRESHOLD, GEMINI_API_KEY, STORY_GENRES } from './lib/constants';
-import { resizeImage } from './utils/image';
+// [修改] 引入 uploadBase64Image 用於上傳圖片
+import { resizeImage, uploadBase64Image } from './utils/image';
 import { pcmToWav } from './utils/audio';
 import type { AIReview, Contribution, Story } from './types';
 import AuroraBackground from './components/AuroraBackground';
 import CreateStoryModal from './components/CreateStoryModal';
 import HeaderBar from './components/HeaderBar';
+
 const HomeView = React.lazy(() => import('./components/HomeView'));
 const StoryView = React.lazy(() => import('./components/StoryView'));
 
@@ -68,6 +70,7 @@ export default function App() {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
+  // 初始化 Auth
   useEffect(() => {
     if (!auth) return;
     const authInstance = auth;
@@ -101,6 +104,7 @@ export default function App() {
     });
   }, []);
 
+  // 監聽 Stories
   useEffect(() => {
     if (!user || !db) return;
     const q = query(collection(db, 'stories'));
@@ -127,6 +131,7 @@ export default function App() {
     }
   }, [stories, view]);
 
+  // 監聽 Contributions
   useEffect(() => {
     if (!user || !currentStory || !db) return;
     const q = query(collection(db, 'contributions'));
@@ -137,6 +142,7 @@ export default function App() {
     }, (err) => console.error("Contributions error:", err));
   }, [user, currentStory]);
 
+  // 清理 Audio
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -313,7 +319,24 @@ export default function App() {
   const handleConfirmCreateStory = async () => {
     if (!user || !newStoryTitle.trim() || !newStorySummary.trim() || !db) return;
     const authorName = user.displayName || "匿名" + user.uid.slice(0, 4);
+    
     try {
+      let finalCoverUrl = null;
+
+      // [修改] 如果有圖片 (Base64)，先上傳至 Firebase Storage
+      if (newStoryCover) {
+        // 定義 Storage 存放路徑：covers/使用者ID/檔名
+        const storagePath = `covers/${user.uid}`;
+        try {
+          // 上傳並等待回傳公開 URL
+          finalCoverUrl = await uploadBase64Image(newStoryCover, storagePath);
+        } catch (uploadError) {
+          console.error("封面圖片上傳失敗:", uploadError);
+          alert("封面圖片上傳失敗，將建立無封面故事。");
+          // 上傳失敗時，選擇不中斷流程，而是存成無封面
+        }
+      }
+
       await addDoc(collection(db, 'stories'), {
         title: newStoryTitle.trim(),
         authorId: user.uid,
@@ -322,12 +345,19 @@ export default function App() {
         status: 'ongoing',
         summary: newStorySummary.trim(),
         genre: newStoryGenre,
-        coverUrl: newStoryCover || null
+        coverUrl: finalCoverUrl // 這裡存的是 Storage 的短網址
       });
+
       setShowCreateModal(false);
+      // 重置狀態
+      setNewStoryTitle('');
+      setNewStorySummary('');
+      setNewStoryGenre(STORY_GENRES[0]);
+      setNewStoryCover(null);
+
     } catch (e) {
       console.error("Create Story Error:", e);
-      alert("建立故事失敗：請檢查 Firebase Rules");
+      alert("建立故事失敗：請檢查 Console 與 Firebase Rules");
     }
   };
 
@@ -356,7 +386,7 @@ export default function App() {
       setInspiration([]);
     } catch (e) {
       console.error("Submit Contribution Error:", e);
-      alert("送出分支失敗");
+      alert("送出分支失敗 (請檢查 Console 確認是否為權限問題)");
     }
   };
 
@@ -452,6 +482,7 @@ export default function App() {
       const data = await response.json();
       const imgData = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData;
       if (imgData) {
+        // 這裡依然使用 Base64 進行預覽，但在確認建立故事時會被 uploadBase64Image 轉換
         const resized = await resizeImage(`data:${imgData.mimeType};base64,${imgData.data}`);
         setNewStoryCover(resized);
       }

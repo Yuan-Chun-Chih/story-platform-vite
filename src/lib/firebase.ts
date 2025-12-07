@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage'; // [1] 新增引入
 
 const getFirebaseConfig = () => {
   if (typeof window !== 'undefined' && typeof (window as any).__firebase_config !== 'undefined') {
@@ -32,11 +33,13 @@ requiredKeys.forEach((key) => {
   }
 });
 
-// Initialize once; let Firebase throw early if config is invalid so auth/db are never undefined.
+// Initialize once
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app); // [2] 初始化 storage
 
 const APP_ID = typeof window !== 'undefined' && (window as any).__app_id ? (window as any).__app_id : 'story-platform-default';
 
-export { app, auth, db, APP_ID, firebaseConfig };
+// [3] 記得在 export 列表中加入 storage
+export { app, auth, db, storage, APP_ID, firebaseConfig };
