@@ -1,4 +1,6 @@
+// src/App.tsx
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { 
   signInAnonymously, 
   onAuthStateChanged, 
@@ -22,20 +24,47 @@ import {
 
 import { auth, db } from './lib/firebase';
 import { CANON_THRESHOLD, GEMINI_API_KEY, STORY_GENRES } from './lib/constants';
-// [修改] 引入 uploadBase64Image 用於上傳圖片
 import { resizeImage, uploadBase64Image } from './utils/image';
 import { pcmToWav } from './utils/audio';
 import type { AIReview, Contribution, Story } from './types';
 import AuroraBackground from './components/AuroraBackground';
 import CreateStoryModal from './components/CreateStoryModal';
 import HeaderBar from './components/HeaderBar';
+// [新增] 引入導覽 Hook
+import { useTour } from './hooks/useTour';
 
 const HomeView = React.lazy(() => import('./components/HomeView'));
 const StoryView = React.lazy(() => import('./components/StoryView'));
 
+// [新增] 路由輔助元件：負責從網址讀取 ID 並同步資料
+const StoryRouteHandler = ({ 
+  stories, 
+  onFound 
+}: { 
+  stories: Story[], 
+  onFound: (s: Story) => void 
+}) => {
+  const { storyId } = useParams();
+  
+  useEffect(() => {
+    if (storyId && stories.length > 0) {
+      const target = stories.find(s => s.id === storyId);
+      if (target) {
+        onFound(target);
+      }
+    }
+  }, [storyId, stories, onFound]);
+
+  return null;
+};
+
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [view, setView] = useState<'home' | 'story'>('home');
+  
+  // [修改] 使用 Router Hook 取代原本的 view state
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [stories, setStories] = useState<Story[]>([]);
   const [currentStory, setCurrentStory] = useState<Story | null>(null);
 
@@ -70,7 +99,20 @@ export default function App() {
   const [inviteCopied, setInviteCopied] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
-  // 初始化 Auth
+  // [新增] 啟用網站導覽 (只會在首頁且第一次訪問時觸發)
+  useTour();
+
+  // [新增] 監聽路由變化，如果回到首頁，就清空目前的故事狀態
+  useEffect(() => {
+    if (location.pathname === '/') {
+      setCurrentStory(null);
+      setCurrentPath([]);
+      setCurrentNodeId(null);
+      stopAudio();
+    }
+  }, [location.pathname]);
+
+  // 初始化 Auth (包含錯誤處理修正)
   useEffect(() => {
     if (!auth) return;
     const authInstance = auth;
@@ -83,12 +125,17 @@ export default function App() {
         } else {
           await signInAnonymously(authInstance);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Auth initialization error:", error);
-        try {
-          await signInAnonymously(authInstance);
-        } catch (anonError) {
-          console.error("Anonymous auth fallback failed:", anonError);
+        // [新增] 針對 admin-restricted-operation 顯示明確提示
+        if (error.code === 'auth/admin-restricted-operation') {
+          alert("設定錯誤：請至 Firebase Console > Authentication > Sign-in method 開啟「匿名 (Anonymous)」登入功能。");
+        } else {
+          try {
+            await signInAnonymously(authInstance);
+          } catch (anonError) {
+            console.error("Anonymous auth fallback failed:", anonError);
+          }
         }
       }
     };
@@ -114,22 +161,6 @@ export default function App() {
       setStories(fetchedStories);
     }, (err) => console.error("Story fetch error:", err));
   }, [user]);
-
-  // Auto-open story from query param for easier分享/協作
-  useEffect(() => {
-    if (!stories.length || view === 'story') return;
-    const params = new URLSearchParams(window.location.search);
-    const storyId = params.get('storyId');
-    if (storyId) {
-      const target = stories.find(s => s.id === storyId);
-      if (target) {
-        setCurrentStory(target);
-        setView('story');
-        setCurrentPath([]);
-        setCurrentNodeId(null);
-      }
-    }
-  }, [stories, view]);
 
   // 監聽 Contributions
   useEffect(() => {
@@ -186,12 +217,21 @@ export default function App() {
     setPlayingNodeId(null);
   };
 
+  // [修改] TTS 語音播放修復
   const handleSpeak = async (text: string, nodeId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    
     if (!GEMINI_API_KEY) {
       alert("請在環境變數中填入 GEMINI_API_KEY 才能使用語音播放");
       return;
     }
+
+    // [新增] 防止空字串導致 400 錯誤
+    if (!text || text.trim() === '') {
+      console.warn("TTS: 輸入文字為空，略過請求");
+      return;
+    }
+
     if (playingNodeId === nodeId) {
       stopAudio();
       return;
@@ -201,20 +241,36 @@ export default function App() {
     setIsSpeakingLoading(true);
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${GEMINI_API_KEY}`, {
+      // 建議使用 'gemini-2.0-flash-exp' 或確認您的 Key 支援 'gemini-2.5-flash-preview-tts'
+      const modelName = 'gemini-2.0-flash-exp'; 
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text }] }],
           generationConfig: {
             responseModalities: ["AUDIO"],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } }
+            speechConfig: { 
+              voiceConfig: { 
+                prebuiltVoiceConfig: { 
+                  voiceName: "Aoede" 
+                } 
+              } 
+            }
           }
         })
       });
-      if (!response.ok) throw new Error(`TTS Error: ${response.status}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Gemini API Error:", errorData);
+        throw new Error(`TTS Error: ${response.status}`);
+      }
+      
       const data = await response.json();
       const audioContent = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      
       if (audioContent) {
         const wavUrl = pcmToWav(audioContent, 24000);
         const audio = new Audio(wavUrl);
@@ -225,7 +281,7 @@ export default function App() {
       }
     } catch (error) {
       console.error("TTS Failed", error);
-      alert("語音播放失敗");
+      alert("語音播放失敗，請檢查 API Key 或額度");
       setPlayingNodeId(null);
     } finally {
       setIsSpeakingLoading(false);
@@ -234,17 +290,15 @@ export default function App() {
 
   const handleShare = () => {
     if (!currentStory) return;
-    const text = `我正在 Co-Weave 共同創作！\n故事：${currentStory.title}\n\n快來一起寫下後續吧！`;
-    navigator.clipboard.writeText(text);
+    // [修改] 複製當前網址
+    navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleCopyInviteLink = () => {
-    if (!currentStory) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set('storyId', currentStory.id);
-    navigator.clipboard.writeText(url.toString());
+    // [修改] 複製當前網址
+    navigator.clipboard.writeText(window.location.href);
     setInviteCopied(true);
     setTimeout(() => setInviteCopied(false), 2000);
   };
@@ -273,7 +327,7 @@ export default function App() {
       await signInWithPopup(auth, provider);
     } catch (error: any) {
       console.error("Google login failed", error);
-      alert(`Google 登入失敗：請確認 Firebase authDomain 有設定並已在 Authorized domains，詳情：${error.message}`);
+      alert(`Google 登入失敗：請確認 Firebase authDomain 設定正確。詳情：${error.message}`);
     } finally {
       setIsAuthLoading(false);
     }
@@ -323,21 +377,17 @@ export default function App() {
     try {
       let finalCoverUrl = null;
 
-      // [修改] 如果有圖片 (Base64)，先上傳至 Firebase Storage
       if (newStoryCover) {
-        // 定義 Storage 存放路徑：covers/使用者ID/檔名
         const storagePath = `covers/${user.uid}`;
         try {
-          // 上傳並等待回傳公開 URL
           finalCoverUrl = await uploadBase64Image(newStoryCover, storagePath);
         } catch (uploadError) {
           console.error("封面圖片上傳失敗:", uploadError);
           alert("封面圖片上傳失敗，將建立無封面故事。");
-          // 上傳失敗時，選擇不中斷流程，而是存成無封面
         }
       }
 
-      await addDoc(collection(db, 'stories'), {
+      const docRef = await addDoc(collection(db, 'stories'), {
         title: newStoryTitle.trim(),
         authorId: user.uid,
         authorName,
@@ -345,15 +395,17 @@ export default function App() {
         status: 'ongoing',
         summary: newStorySummary.trim(),
         genre: newStoryGenre,
-        coverUrl: finalCoverUrl // 這裡存的是 Storage 的短網址
+        coverUrl: finalCoverUrl
       });
 
       setShowCreateModal(false);
-      // 重置狀態
       setNewStoryTitle('');
       setNewStorySummary('');
       setNewStoryGenre(STORY_GENRES[0]);
       setNewStoryCover(null);
+
+      // [新增] 建立後直接導向新故事頁面
+      navigate(`/story/${docRef.id}`);
 
     } catch (e) {
       console.error("Create Story Error:", e);
@@ -482,7 +534,6 @@ export default function App() {
       const data = await response.json();
       const imgData = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData)?.inlineData;
       if (imgData) {
-        // 這裡依然使用 Base64 進行預覽，但在確認建立故事時會被 uploadBase64Image 轉換
         const resized = await resizeImage(`data:${imgData.mimeType};base64,${imgData.data}`);
         setNewStoryCover(resized);
       }
@@ -515,7 +566,7 @@ export default function App() {
 
       <HeaderBar 
         user={user}
-        view={view}
+        view={location.pathname === '/' ? 'home' : 'story'}
         isEditingName={isEditingName}
         tempName={tempName}
         isAuthLoading={isAuthLoading}
@@ -525,55 +576,67 @@ export default function App() {
         onGoogleLogin={handleGoogleLogin}
         onLogout={handleLogout}
         onCreateStory={handleCreateStoryClick}
-        onNavigateHome={() => { setView('home'); setCurrentStory(null); setCurrentPath([]); setCurrentNodeId(null); stopAudio(); }}
+        onNavigateHome={() => navigate('/')}
       />
 
       <div className="relative z-10 container mx-auto px-4 py-6 max-w-4xl">
-        {view === 'home' ? (
-          <Suspense fallback={<div className="text-slate-400">載入中...</div>}>
-            <HomeView 
-              stories={stories} 
-              user={user}
-              isAuthLoading={isAuthLoading}
-              onGoogleLogin={handleGoogleLogin}
-              onSelectStory={(story) => { setCurrentStory(story); setView('story'); setCurrentPath([]); setCurrentNodeId(null); }} 
-            />
-          </Suspense>
-        ) : (
-          <Suspense fallback={<div className="text-slate-400">載入中...</div>}>
-            <StoryView
-              currentStory={currentStory}
-              currentPath={currentPath}
-              currentBranches={currentBranches}
-              aiRanking={aiRanking}
-              isRanking={isRanking}
-              isWriting={isWriting}
-              newContent={newContent}
-              newTags={newTags}
-              inspiration={inspiration}
-              isGenerating={isGenerating}
-              playingNodeId={playingNodeId}
-              isSpeakingLoading={isSpeakingLoading}
-              copied={copied}
-              inviteCopied={inviteCopied}
-              user={user}
-              onBack={() => { setView('home'); setCurrentStory(null); setCurrentPath([]); setCurrentNodeId(null); stopAudio(); }}
-              onShare={handleShare}
-              onCopyInvite={handleCopyInviteLink}
-              onExport={handleExportStory}
-              onNavigateUp={navigateUp}
-              onNavigateToNode={navigateToNode}
-              onToggleWriting={setIsWriting}
-              onChangeContent={setNewContent}
-              onChangeTags={setNewTags}
-              onGenerateInspiration={generateInspiration}
-              onSubmitContribution={handleSubmitContribution}
-              onGenerateRanking={generateRanking}
-              onLike={handleLike}
-              onSpeak={handleSpeak}
-            />
-          </Suspense>
-        )}
+        <Suspense fallback={<div className="text-slate-400">載入中...</div>}>
+          <Routes>
+            <Route path="/" element={
+              <HomeView 
+                stories={stories} 
+                user={user}
+                isAuthLoading={isAuthLoading}
+                onGoogleLogin={handleGoogleLogin}
+                onSelectStory={(story) => navigate(`/story/${story.id}`)} 
+              />
+            } />
+
+            <Route path="/story/:storyId" element={
+              <>
+                <StoryRouteHandler stories={stories} onFound={setCurrentStory} />
+                
+                {currentStory ? (
+                  <StoryView
+                    currentStory={currentStory}
+                    currentPath={currentPath}
+                    currentBranches={currentBranches}
+                    aiRanking={aiRanking}
+                    isRanking={isRanking}
+                    isWriting={isWriting}
+                    newContent={newContent}
+                    newTags={newTags}
+                    inspiration={inspiration}
+                    isGenerating={isGenerating}
+                    playingNodeId={playingNodeId}
+                    isSpeakingLoading={isSpeakingLoading}
+                    copied={copied}
+                    inviteCopied={inviteCopied}
+                    user={user}
+                    onBack={() => navigate('/')}
+                    onShare={handleShare}
+                    onCopyInvite={handleCopyInviteLink}
+                    onExport={handleExportStory}
+                    onNavigateUp={navigateUp}
+                    onNavigateToNode={navigateToNode}
+                    onToggleWriting={setIsWriting}
+                    onChangeContent={setNewContent}
+                    onChangeTags={setNewTags}
+                    onGenerateInspiration={generateInspiration}
+                    onSubmitContribution={handleSubmitContribution}
+                    onGenerateRanking={generateRanking}
+                    onLike={handleLike}
+                    onSpeak={handleSpeak}
+                  />
+                ) : (
+                   <div className="flex items-center justify-center py-20">
+                     <div className="text-slate-400 animate-pulse">正在讀取故事卷軸...</div>
+                   </div>
+                )}
+              </>
+            } />
+          </Routes>
+        </Suspense>
       </div>
     </div>
   );
