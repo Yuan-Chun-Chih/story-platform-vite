@@ -1,5 +1,5 @@
 // src/components/HeaderBar.tsx
-import { LogIn, LogOut, Plus, Sparkles, Edit2, User as UserIcon, BookOpen } from 'lucide-react';
+import { LogIn, LogOut, Plus, Edit2, User as UserIcon, BookOpen } from 'lucide-react';
 import type { User as FirebaseUser } from 'firebase/auth';
 
 interface HeaderBarProps {
