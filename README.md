@@ -1,5 +1,4 @@
-
-# 專題名稱：Co-Weave共織
+# 專題名稱：Co-Weave 共織故事平台 | 功能詳解與使用指南
 
 ## 組員及分工
 
@@ -7,38 +6,99 @@
 
 溫竣閔：協助網站測試、人員協調及簡報報告
 
-葉揚：提供創意發想及協助程式糾錯
+葉揚：協助程式糾錯及簡報報告
 
+Co-Weave 是一個結合 社群協作 與 生成式 AI 的互動式故事接龍平台。在這裡，故事不再是單向的傳輸，而是一場多重宇宙的冒險。每一個選擇都可能衍生出新的平行時空，每一位讀者都有機會成為作者。
 
-# Story Platform (React + Vite)
+## 📚 1. 探索故事宇宙 (Discovery)
+進入 Co-Weave 的第一步，是發現那些正在生長的故事。
 
-協作寫故事的前端專案，提供分支/讚、AI 靈感、AI 封面、朗讀、Google 登入等功能。
+### 智慧搜尋與過濾
+首頁提供了強大的搜尋列。您可以輸入關鍵字搜尋故事標題或大綱，也可以透過下拉選單篩選特定類型（如：奇幻冒險、賽博龐克、懸疑推理），快速找到您感興趣的題材。
 
-## 快速開始
-1) 安裝依賴：`npm install`
-2) 設定 `.env`（範例見下），再重新啟動 `npm run dev`
-3) 開發：`npm run dev`
-4) 打包：`npm run build`
+### 視覺化故事卡片
+每個故事都以精美的玻璃擬態（Glassmorphism）卡片呈現。卡片上動態展示了：
 
-### `.env` 範例
-```
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_STORAGE_BUCKET=...
-VITE_FIREBASE_MESSAGING_SENDER_ID=...
-VITE_FIREBASE_APP_ID=...
-VITE_FIREBASE_MEASUREMENT_ID=...
+- AI 生成封面：反映故事氛圍的獨特視覺圖。
+- 類型標籤：一目了然的故事基調。
+- 作者與時間：顯示發起人與最近更新時間。
+- 即時狀態：故事大綱預覽。
 
-VITE_GEMINI_API_KEY=your_gemini_key
-```
+## ✍️ 2. 共同創作系統 (Co-Creation)
+這是平台的核心。我們設計了一套機制，讓多人協作變得井然有序且充滿樂趣。
 
-## 主要功能
-- 故事串流：分支瀏覽、按讚、AI 排名、音訊朗讀
-- AI 支援：靈感產生、分支建議、AI 封面生成
-- 協作：邀請連結 (storyId) 一鍵複製、匯出文字、社群分享
-- 安全：Google 登入同步身份，匿名模式可快速體驗
+### 核心機制：主線與分支 (Canon & Branches)
+主線 (The Canon)：這是目前社群公認的「正史」。進入故事頁面時，您看到的一連串段落就是主線。
 
-## 開發提示
-- 若 AI 功能失效，先確認 `VITE_GEMINI_API_KEY`、已啟用 Gemini/Vertex AI API，並重啟 dev server。
-- 若 Google 登入失敗，檢查 Firebase authDomain、Authorized domains、以及 Firestore/Rules 是否允許所需操作。
+分支 (Branches)：在主線的每一個節點（段落），都可以長出無數個「分支」。這些分支代表了故事發展的不同可能性。
+
+### 撰寫體驗
+節點式寫作：您不需要寫完整個故事。只需針對當前的劇情，續寫一個段落（Node）。
+
+環境標籤 (Context Tags)：提交內容時，您可以標註 出場角色、發生地點 與 時間點。這不僅幫助讀者理解，也能讓 AI 更精準地分析劇情連貫性。
+
+✨ AI 靈感助手 (AI Inspiration)：
+
+遇到寫作瓶頸？ 點擊「靈感」按鈕，Gemini AI 會分析前文的情節與風格，即時提供 3 個截然不同的劇情發展建議。您可以直接採用，或以此為跳板激發創意。
+
+## ⚖️ 3. 社群決策與 AI 輔助 (Governance & AI)
+如何決定哪一個分支能成為「主線」？我們採用社群民主與 AI 建議並行的方式。
+
+### 按讚投票機制
+每個分支都可以被閱讀和按讚。當某個分支的按讚數達到 門檻值 (預設為 5 票)，系統會自動將其晉升為 Canon (正史)，故事主線便會往該方向推進，並解鎖下一階段的續寫功能。
+
+🤖 AI 評審員 (AI Ranking)  
+當一個節點下出現大量分支時，選擇變得困難。這時可啟動 AI 排名 功能。
+
+Gemini 會閱讀所有候選分支。
+
+根據 創意度 (Creativity)、節奏感 (Pacing) 與 劇情連貫性 (Coherence) 進行綜合評分。
+
+提供包含「評分理由」的推薦名單，幫助讀者做出更好的投票選擇。
+
+## 🎧 4. 沉浸式閱讀體驗 (Immersive Reading)
+Co-Weave 不只用來看，還能用「聽」的。
+
+🗣️ AI 語音朗讀 (Text-to-Speech)  
+我們整合了最先進的 Gemini TTS 模型。點擊故事段落旁的喇叭圖示，AI 將以自然、充滿情感的語調朗讀故事內容。這讓您在通勤或做家事時，也能持續追更。
+
+時光回溯 (History Traversal)  
+故事頁面左側的線條代表時間軸。點擊上方任何一個舊的段落，您可以「回溯」到那個時間點，查看當時是否有其他被遺忘的有趣分支。
+
+## 🛠️ 5. 創作者工具箱 (Creator Tools)
+一鍵建立故事：
+
+- 輸入標題與簡單大綱。
+- AI 封面生成：點擊魔術棒，AI 會根據您的文字描述，自動繪製並上傳一張專屬的故事封面圖。
+
+故事匯出 (Export)：
+
+想將大家共創的成果保存下來？點擊下載按鈕，系統會將當前的主線故事整合成一份 .txt 文件，格式包含標題、作者群資訊與完整內文。
+
+即時分享：
+
+一鍵複製故事專屬連結，邀請朋友直接進入特定故事節點進行接龍。
+
+## 👤 6. 帳戶與安全 (Account & Security)
+無縫體驗 (Anonymous First)：
+
+新訪客無需註冊即可瀏覽與閱讀。
+
+Google 登入整合：
+
+建議創作者使用 Google 帳號登入。
+
+優勢：您的創作貢獻將永久連結至您的帳戶；您的暱稱與頭像將同步顯示在您寫的每一個段落上，建立個人品牌。
+
+網站導覽 (Tour Guide)：
+
+初次登入的使用者會看見互動式導覽，手把手帶您熟悉介面操作。
+
+## 💻 技術亮點 (Technical Highlights)
+
+- Frontend: React 18, Vite, TypeScript, Tailwind CSS (Glassmorphism UI).
+- Backend / DB: Firebase Firestore (Real-time updates), Firebase Auth.
+- Storage: Firebase Storage (Image hosting).
+- AI Core: Google Gemini API (Models: gemini-2.0-flash, gemini-2.5-flash-preview-tts).
+- Routing: React Router v6 (Deep linking support).
+
